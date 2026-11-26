@@ -1,6 +1,6 @@
 {
   "monitor_currency": "AUD",
-  "target_price": "4.3500",
+  "target_price": "4.4000",
   "daily_hour_beijing": 8,
   "cooldown_minutes": 60,
   "daily_limit_per_destination": 5,
