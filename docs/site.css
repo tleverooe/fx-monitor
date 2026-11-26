@@ -23,3 +23,26 @@ input { width: 100%; max-width: 300px; }
 output { color: #145a4c; font-size: 1.35rem; font-weight: 700; }
 footer { padding: 12px 0; }
 a { color: #145a4c; }
+
+.day-controls {
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr) 44px;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+  text-align: center;
+}
+.day-controls button {
+  padding: 0;
+  background: #145a4c;
+  border-color: #145a4c;
+  color: white;
+  font-size: 1.25rem;
+  font-weight: 700;
+}
+.day-controls button:disabled {
+  background: #edf3f1;
+  border-color: #d7e4de;
+  color: #80928f;
+  cursor: not-allowed;
+}
