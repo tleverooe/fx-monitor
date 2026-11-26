@@ -154,7 +154,7 @@ async function reload() {
 
 for (const period of [0, 7, 30, 90]) {
   const button = document.createElement('button');
-  button.textContent = period ? period + ' 天' : '今日';
+  button.textContent = period ? period + ' 天' : '单天';
   button.setAttribute('aria-pressed', String(period === days));
   button.addEventListener('click', () => {
     days = period;
@@ -168,9 +168,8 @@ for (const period of [0, 7, 30, 90]) {
 }
 const dayNavigation = document.createElement('div');
 dayNavigation.hidden = true;
-dayNavigation.style.marginTop = '8px';
 const dayControls = document.createElement('div');
-dayControls.className = 'filters';
+dayControls.className = 'day-controls';
 dayControls.setAttribute('role', 'group');
 dayControls.setAttribute('aria-label', '按日查看走势');
 const dayLabel = document.createElement('span');
