@@ -1,13 +1,28 @@
 """Push adapters. Provider responses and request URLs never go to stdout."""
 import json
 import os
+import smtplib
+import ssl
+from email.message import EmailMessage
 from urllib.parse import urlencode
 from urllib.request import Request, urlopen
 
 
 def destinations():
     provider = os.getenv("PUSH_PROVIDER", "pushplus") or "pushplus"
-    if provider == "pushplus":
+    if provider == "email":
+        sender = os.getenv("GMAIL_SENDER", "").strip()
+        password = "".join(os.getenv("GMAIL_APP_PASSWORD", "").split())
+        recipients = os.getenv("FX_EMAIL_TO", "").replace(",", " ").split()
+        if not any((sender, password, recipients)):
+            return
+        if not all((sender, password, recipients)):
+            raise ValueError("请设置 GMAIL_SENDER、GMAIL_APP_PASSWORD 和 FX_EMAIL_TO")
+        for index, recipient in enumerate(dict.fromkeys(recipients)):
+            yield f"email-{index}", "smtp.gmail.com", {
+                "sender": sender, "password": password, "recipient": recipient,
+            }
+    elif provider == "pushplus":
         token = os.getenv("PUSHPLUS_TOKEN")
         topic = os.getenv("PUSHPLUS_TOPIC")
         if token:
@@ -29,12 +44,21 @@ def destinations():
         for index, key in enumerate(dict.fromkeys(keys.replace(",", " ").split())):
             yield f"serverchan-{index}", f"https://sctapi.ftqq.com/{key}.send", {}
     else:
-        raise ValueError("PUSH_PROVIDER 必须是 pushplus、serverchan 或 wxpusher")
+        raise ValueError("PUSH_PROVIDER 必须是 pushplus、serverchan、wxpusher 或 email")
 
 
 def send(destination, title, body):
     label, url, fields = destination
     try:
+        if label.startswith("email-"):
+            message = EmailMessage()
+            message["Subject"] = title
+            message["From"] = fields["sender"]
+            message["To"] = fields["recipient"]
+            message.set_content(body)
+            with smtplib.SMTP_SSL(url, 465, timeout=15, context=ssl.create_default_context()) as client:
+                client.login(fields["sender"], fields["password"])
+                return not client.send_message(message)
         if label.startswith("serverchan-"):
             payload = urlencode({"title": title, "desp": body}).encode()
             content_type = "application/x-www-form-urlencoded"

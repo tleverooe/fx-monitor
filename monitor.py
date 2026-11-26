@@ -193,7 +193,7 @@ def coverage_text(history, code, days):
 def notify(test=False):
     targets = list(destinations())
     if not targets:
-        print("未配置微信推送密钥，跳过通知")
+        print("未配置通知密钥，跳过通知")
         if test:
             raise SystemExit(1)
         return
@@ -246,7 +246,7 @@ def notify(test=False):
         if daily:
             parts.append(f"日报｜昨日采集最高 / 最低：{prior_summary}")
         if test:
-            parts = ["手动发送测试，看到这条消息即表示微信收件成功。"]
+            parts = ["手动发送测试，看到这条消息即表示通知送达。"]
         limit = min(CONFIG["daily_limit_per_destination"], 5) if label.startswith(
             "serverchan-") else CONFIG["daily_limit_per_destination"]
         # Leave one attempt available for the daily report.
@@ -257,7 +257,7 @@ def notify(test=False):
                 print(f"{label}：已达到今日推送预算")
                 failed = True
             continue
-        title = f"{currency} ¥{rate_text}｜" + ("微信测试" if test else
+        title = f"{currency} ¥{rate_text}｜" + ("通知测试" if test else
                  "购汇日报" if daily else "达到目标价" if reached else "近期新低")
         body = "\n\n".join([
             *parts, f"{code} 现汇卖出价：¥{rate_text} / 1 {code}",

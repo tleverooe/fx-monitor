@@ -9,6 +9,13 @@
 3. 查看两项任务。**collect** 表示采集和写入，**deploy** 表示部署。部署成功后访问 <https://tleverooe.github.io/fx-monitor/>。
 4. 若采集写回报 403，在该次运行展开 **Persist rates before notifications**，检查仓库或组织是否允许工作流申请 `contents: write`。默认分支须为 `main`。无需给项目配置额外 GitHub Token。
 
+## 邮件接收配置
+
+1. 用个人 Gmail 作为发件人，在 Google 账号开启两步验证后生成一个专用[应用专用密码](https://myaccount.google.com/apppasswords)。使用该应用密码，勿使用 Gmail 登录密码。
+2. 在仓库 **Settings → Secrets and variables → Actions → Secrets** 创建 `GMAIL_SENDER`（发件 Gmail 地址）、`GMAIL_APP_PASSWORD`（应用专用密码）、`FX_EMAIL_TO`（收件邮件地址，多个地址用换行或逗号分隔，各自独立接收）。
+3. 在同页 **Variables** 创建或修改 `PUSH_PROVIDER`，值设为 `email`。在 **Actions → FX Monitor → Run workflow** 勾选发送测试，检查收件箱和垃圾邮件。
+4. 每个收件地址使用独立的每日额度。增加收件人时可在末尾追加，并保持现有顺序，使当天的去重状态对应原收件人。
+
 ## 微信接收配置
 
 所有凭据在 **Settings → Secrets and variables → Actions → Secrets → New repository secret** 输入。渠道选择在同页面的 **Variables** 中创建 `PUSH_PROVIDER`。切换服务后重新手动测试。

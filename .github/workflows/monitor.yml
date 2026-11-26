@@ -15,7 +15,7 @@ on:
   workflow_dispatch:
     inputs:
       test_push:
-        description: 发送一条微信测试消息（占用当天推送额度）
+        description: 发送一条测试通知（占用当天推送额度）
         type: boolean
         default: false
 permissions:
@@ -55,6 +55,9 @@ jobs:
         env:
           TEST_PUSH: ${{ inputs.test_push }}
           PUSH_PROVIDER: ${{ vars.PUSH_PROVIDER }}
+          GMAIL_SENDER: ${{ secrets.GMAIL_SENDER }}
+          GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
+          FX_EMAIL_TO: ${{ secrets.FX_EMAIL_TO }}
           PUSHPLUS_TOKEN: ${{ secrets.PUSHPLUS_TOKEN }}
           PUSHPLUS_TOPIC: ${{ secrets.PUSHPLUS_TOPIC }}
           WXPUSHER_APP_TOKEN: ${{ secrets.WXPUSHER_APP_TOKEN }}
@@ -82,7 +85,7 @@ jobs:
       - name: Report notification result
         if: steps.notify.outcome == 'failure'
         run: |
-          echo '::warning::微信推送失败或未配置，采集和网页部署可独立进行，请检查通知步骤。'
+          echo '::warning::通知发送失败或未配置，采集和网页部署可独立进行，请检查通知步骤。'
   deploy:
     needs: collect
     permissions:
