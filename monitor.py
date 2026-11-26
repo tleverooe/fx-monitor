@@ -1,6 +1,7 @@
 """Collect Bank of China telegraphic-transfer selling rates."""
 import argparse
 import json
+import re
 import time
 from datetime import datetime, timedelta, timezone
 from decimal import Decimal, InvalidOperation
@@ -81,7 +82,12 @@ def parse_quotes(html, currencies, collected_at):
                 continue
             try:
                 value = Decimal(raw.replace(",", "")) / 100
-                stamp = datetime.strptime(day.replace("/", "-") + " " + clock,
+                # Some bank responses repeat the clock in the date cell.
+                date_match = re.search(r"\d{4}[-/]\d{1,2}[-/]\d{1,2}", day)
+                time_match = re.search(r"\d{1,2}:\d{2}:\d{2}", clock or day)
+                if not date_match or not time_match:
+                    continue
+                stamp = datetime.strptime(date_match[0].replace("/", "-") + " " + time_match[0],
                                           "%Y-%m-%d %H:%M:%S").replace(tzinfo=TZ)
                 if not value.is_finite() or value <= 0 or stamp > collected_at + timedelta(minutes=2):
                     continue
