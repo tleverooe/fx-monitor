@@ -24,9 +24,9 @@
 | --- | --- | --- |
 | PushPlus（默认） | `PUSHPLUS_TOKEN`、`PUSHPLUS_TOPIC` | 发送方扫码登录并实名认证，创建一对多群组，将群组编码填为 topic。每位收件人通过微信扫码加入并关注服务入口，收件方可免实名。官方文档列每日 200 次微信请求及每群 100 人，实名认证可能有费用。只发给自己时 topic 可省略。 |
 | Server酱 Turbo | `PUSH_PROVIDER=serverchan`，`SERVERCHAN_SENDKEYS` 填一或多把 SendKey（换行或逗号分隔） | 使用各收件账号分别绑定微信服务号渠道的方式，每个接收账号需要自己的 SendKey。每把免费 SendKey 每天最多 5 条。收件端使用微信。保持已有密钥的排列顺序，可在末尾追加。 |
-| WxPusher | `PUSH_PROVIDER=wxpusher`，`WXPUSHER_APP_TOKEN`、`WXPUSHER_TOPIC_ID` | 创建标准推送应用和主题，由每位收件人订阅同一主题。官方将标准 API 标为免费，当前文档列的微信入口为 ClawBot，需逐个验证账号是否具备入口并已绑定。独立客户端也可接收。 |
+| WxPusher | `PUSH_PROVIDER=wxpusher`，`WXPUSHER_APP_TOKEN`、`WXPUSHER_TOPIC_ID` | 创建标准推送应用和主题，由每位收件人订阅同一主题。官方将标准 API 标为免费，公众号推送已停用。微信 ClawBot 需要通过 WxPusher App 完成绑定，也可使用独立客户端接收。 |
 
-官方说明：[PushPlus 一对多](https://pushplus.plus/doc/function/more.html)、[额度](https://pushplus.plus/doc/guide/use.html)、[实名](https://pushplus.plus/doc/function/verify.html)、[Server酱 FAQ](https://sct.ftqq.com/docs/getting-started/faq/)、[WxPusher](https://wxpusher.zjiecode.com/docs/)。
+官方说明：[PushPlus 一对多](https://pushplus.plus/doc/function/more.html)、[额度](https://pushplus.plus/doc/guide/use.html)、[实名](https://pushplus.plus/doc/function/verify.html)、[Server酱 FAQ](https://sct.ftqq.com/docs/getting-started/faq/)、[WxPusher 订阅和当前渠道](https://wxpusher.zjiecode.com/docs/subscribe-methods.html)。
 
 配置后，在 **Actions → FX Monitor → Run workflow** 勾选发送测试。每个接收账号检查自己的微信。Actions 的“接口已接受”表示服务商收到请求，实际送达以微信显示为准。PushPlus 免费微信模板可能只显示标题，标题自带当前价及信号，点击可看服务商消息正文。
 
