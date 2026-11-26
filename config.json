@@ -1,0 +1,12 @@
+{
+  "monitor_currency": "AUD",
+  "target_price": "4.3500",
+  "daily_hour_beijing": 8,
+  "cooldown_minutes": 60,
+  "daily_limit_per_destination": 5,
+  "currencies": {
+    "AUD": "澳大利亚元", "USD": "美元", "EUR": "欧元",
+    "GBP": "英镑", "JPY": "日元", "HKD": "港币",
+    "CAD": "加拿大元", "NZD": "新西兰元", "SGD": "新加坡元"
+  }
+}

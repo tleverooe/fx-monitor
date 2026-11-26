@@ -1,0 +1,98 @@
+name: FX Monitor
+on:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/monitor.yml
+      - monitor.py
+      - notify.py
+      - config.json
+      - 'docs/*.html'
+      - 'docs/*.css'
+      - 'docs/*.js'
+  schedule:
+    - cron: '3-58/5 * * * *'
+  workflow_dispatch:
+    inputs:
+      test_push:
+        description: 发送一条微信测试消息（占用当天推送额度）
+        type: boolean
+        default: false
+permissions:
+  contents: read
+concurrency:
+  group: fx-monitor-main
+  cancel-in-progress: false
+jobs:
+  collect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Collect Bank of China rates
+        id: fetch
+        run: python monitor.py collect
+      - name: Persist rates before notifications
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add docs/rates.json
+          if ! git diff --cached --quiet; then
+            git commit -m 'Collect Bank of China FX rates'
+            git pull --rebase origin main
+            git push origin HEAD:main
+          fi
+      - name: Send report, alerts or manual test
+        id: notify
+        continue-on-error: true
+        env:
+          TEST_PUSH: ${{ inputs.test_push }}
+          PUSH_PROVIDER: ${{ vars.PUSH_PROVIDER }}
+          PUSHPLUS_TOKEN: ${{ secrets.PUSHPLUS_TOKEN }}
+          PUSHPLUS_TOPIC: ${{ secrets.PUSHPLUS_TOPIC }}
+          WXPUSHER_APP_TOKEN: ${{ secrets.WXPUSHER_APP_TOKEN }}
+          WXPUSHER_TOPIC_ID: ${{ secrets.WXPUSHER_TOPIC_ID }}
+          SERVERCHAN_SENDKEYS: ${{ secrets.SERVERCHAN_SENDKEYS }}
+          SERVERCHAN_SENDKEY: ${{ secrets.SERVERCHAN_SENDKEY }}
+        run: |
+          if [ "$TEST_PUSH" = "true" ]; then
+            python monitor.py test-push
+          else
+            python monitor.py notify
+          fi
+      - name: Persist notification state
+        run: |
+          git add state.json
+          if ! git diff --cached --quiet; then
+            git commit -m 'Save FX notification state'
+            git pull --rebase origin main
+            git push origin HEAD:main
+          fi
+      - uses: actions/upload-pages-artifact@v3
+        if: ${{ !cancelled() && steps.fetch.outcome == 'success' }}
+        with:
+          path: docs
+      - name: Report notification result
+        if: steps.notify.outcome == 'failure'
+        run: |
+          echo '::warning::微信推送失败或未配置，采集和网页部署可独立进行，请检查通知步骤。'
+  deploy:
+    needs: collect
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

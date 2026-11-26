@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>FX Monitor · 中国银行购汇</title>
+  <link rel="stylesheet" href="site.css">
+  <script defer src="site.js"></script>
+</head>
+<body>
+  <main>
+    <header>
+      <h1>FX Monitor</h1>
+      <p>中国银行现汇卖出价</p>
+    </header>
+    <section aria-label="最新牌价">
+      <div class="row">
+        <label>币种 <select id="currency"></select></label>
+        <button id="refresh">刷新数据</button>
+      </div>
+      <div class="rate"><strong id="price">—</strong> <span id="unit"></span></div>
+      <p id="target"></p>
+      <p id="stamp"></p>
+      <p id="status" role="status">正在读取采集数据…</p>
+    </section>
+    <section aria-labelledby="history-heading">
+      <h2 id="history-heading">汇率走势</h2>
+      <div id="periods" class="filters" aria-label="图表时段"></div>
+      <div class="stats">
+        <div>采集最低 <strong id="min">—</strong></div>
+        <div>采集最高 <strong id="max">—</strong></div>
+      </div>
+      <canvas id="chart" role="img" aria-label="历史购汇价格走势图"></canvas>
+      <p id="coverage"></p>
+    </section>
+    <section aria-labelledby="calculator-heading">
+      <h2 id="calculator-heading">购汇计算器</h2>
+      <label for="amount">购汇金额 <span id="amount-unit"></span></label>
+      <input id="amount" type="number" min="0" step="any" inputmode="decimal" value="20000">
+      <p>预计需要 <output id="cost" for="amount">—</output></p>
+    </section>
+    <footer><a href="https://www.boc.cn/sourcedb/whpj/">中国银行官方牌价</a> · 实际成交以银行为准</footer>
+  </main>
+</body>
+</html>
