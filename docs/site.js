@@ -11,6 +11,7 @@ const dayMs = 86_400_000;
 const display = value => Number(value).toFixed(value < 0.1 ? 6 : 4);
 let data;
 let days = 0;
+let dayOffset = 0;
 
 function chart(rows, minimum, maximum) {
   const canvas = byId('chart');
@@ -96,9 +97,16 @@ function render() {
   const last = all.at(-1);
   const now = Date.now();
   const today = beijingDate.format(now);
+  const selectedDate = dayOffset ? beijingDate.format(now - dayMs) : today;
+  dayNavigation.hidden = days !== 0;
+  dayLabel.textContent = (dayOffset ? '昨日 ' : '今日 ') + selectedDate;
+  previousDay.disabled = dayOffset === 1;
+  nextDay.disabled = dayOffset === 0;
+  byId('chart').setAttribute('aria-label', days
+    ? '近 ' + days + ' 天购汇价格走势图' : dayLabel.textContent + '购汇价格走势图');
   const rows = days
     ? all.filter(row => Date.parse(row.t) >= now - days * dayMs)
-    : all.filter(row => row.t.startsWith(today));
+    : all.filter(row => row.t.startsWith(selectedDate));
   byId('price').textContent = last ? '¥' + display(last.v) : '暂无报价';
   byId('unit').textContent = '人民币 / 1 ' + code;
   byId('amount-unit').textContent = '（' + code + '）';
@@ -150,6 +158,7 @@ for (const period of [0, 7, 30, 90]) {
   button.setAttribute('aria-pressed', String(period === days));
   button.addEventListener('click', () => {
     days = period;
+    dayOffset = 0;
     for (const entry of byId('periods').children) {
       entry.setAttribute('aria-pressed', String(entry === button));
     }
@@ -157,6 +166,35 @@ for (const period of [0, 7, 30, 90]) {
   });
   byId('periods').append(button);
 }
+const dayNavigation = document.createElement('div');
+dayNavigation.hidden = true;
+dayNavigation.style.marginTop = '8px';
+const dayControls = document.createElement('div');
+dayControls.className = 'filters';
+dayControls.setAttribute('role', 'group');
+dayControls.setAttribute('aria-label', '按日查看走势');
+const dayLabel = document.createElement('span');
+dayLabel.setAttribute('aria-live', 'polite');
+
+function createDayButton(symbol, label, offset) {
+  const button = document.createElement('button');
+  button.type = 'button';
+  button.textContent = symbol;
+  button.setAttribute('aria-label', label);
+  button.addEventListener('click', () => {
+    dayOffset = offset;
+    render();
+    (offset ? nextDay : previousDay).focus();
+  });
+  return button;
+}
+
+const previousDay = createDayButton('←', '查看昨日走势', 1);
+const nextDay = createDayButton('→', '返回今日走势', 0);
+dayControls.append(previousDay, dayLabel, nextDay);
+dayNavigation.append(dayControls);
+byId('periods').after(dayNavigation);
+
 byId('currency').addEventListener('change', render);
 byId('amount').addEventListener('input', calculate);
 byId('refresh').addEventListener('click', reload);
