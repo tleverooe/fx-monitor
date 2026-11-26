@@ -94,9 +94,10 @@ def parse_quotes(html, currencies, collected_at):
 
 
 def fetch():
-    for attempt in range(3):
+    urls = (URL, URL + "index.html", URL)
+    for attempt, url in enumerate(urls):
         try:
-            request = Request(URL, headers={"User-Agent": "Mozilla/5.0",
+            request = Request(url, headers={"User-Agent": "Mozilla/5.0",
                                             "Cache-Control": "no-cache"})
             with urlopen(request, timeout=20) as response:
                 html = response.read(2_000_000)
@@ -105,6 +106,16 @@ def fetch():
             now = datetime.now(TZ)
             quotes = parse_quotes(html, CONFIG["currencies"], now)
             if CONFIG["monitor_currency"] not in quotes:
+                parser = QuoteTableParser()
+                parser.feed(html)
+                currency = CONFIG["currencies"][CONFIG["monitor_currency"]]
+                candidates = [row for table in parser.tables for row in table
+                              if row and row[0].strip() == currency]
+                print(f"中行响应：{len(html)} 字符，{len(parser.tables)} 张表，"
+                      f"目标币种行 {len(candidates)}，有效币种 {len(quotes)}")
+                for candidate in candidates[:2]:
+                    print(f"目标币种行的报价格数和时间：{len(candidate)} / "
+                          + " ".join(cell.strip()[:20] for cell in candidate[-2:]))
                 raise ValueError("缺少监控币种的有效牌价")
             return now, quotes
         except Exception as error:
