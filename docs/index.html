@@ -4,8 +4,8 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>FX Monitor · 中国银行购汇</title>
-  <link rel="stylesheet" href="site.css">
-  <script defer src="site.js"></script>
+  <link rel="stylesheet" href="site.css?v=history">
+  <script defer src="site.js?v=history"></script>
 </head>
 <body>
   <main>
@@ -29,8 +29,12 @@
       <div class="stats">
         <div>采集最低 <strong id="min">—</strong></div>
         <div>采集最高 <strong id="max">—</strong></div>
+        <div>平均报价 <strong id="mean">—</strong></div>
+        <div>时段最新 <strong id="last-in-range">—</strong></div>
+        <div>最高减最低 <strong id="range">—</strong></div>
       </div>
-      <canvas id="chart" role="img" aria-label="历史购汇价格走势图"></canvas>
+      <canvas id="chart" tabindex="0" aria-describedby="quote-detail" role="img" aria-label="历史购汇价格走势图"></canvas>
+      <p id="quote-detail" aria-live="polite"></p>
       <p id="coverage"></p>
     </section>
     <section aria-labelledby="calculator-heading">

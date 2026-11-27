@@ -16,6 +16,7 @@ URL = "https://www.boc.cn/sourcedb/whpj/"
 ROOT = Path(__file__).resolve().parent
 DATA = ROOT / "docs" / "rates.json"
 STATE = ROOT / "state.json"
+BACKFILL = ROOT / "boc_history.json"
 CONFIG = json.loads((ROOT / "config.json").read_text(encoding="utf-8"))
 PERIODS = (7, 30, 90)
 
@@ -60,10 +61,9 @@ class QuoteTableParser(HTMLParser):
             self.tables_open[-1][-1][-1] += data
 
 
-def parse_quotes(html, currencies, collected_at):
+def iter_quotes(html, currencies, collected_at):
     names = {name: code for code, name in currencies.items()}
     required = ("货币名称", "现汇卖出价", "发布日期", "发布时间")
-    quotes = {}
     parser = QuoteTableParser()
     parser.feed(html)
     for table in parser.tables:
@@ -93,9 +93,15 @@ def parse_quotes(html, currencies, collected_at):
                     continue
             except (ValueError, InvalidOperation):
                 continue
-            if code not in quotes or stamp.isoformat() > quotes[code]["t"]:
-                quotes[code] = {"t": stamp.isoformat(), "v": float(value),
-                                "collected_at": collected_at.isoformat()}
+            yield code, {"t": stamp.isoformat(), "v": float(value),
+                         "collected_at": collected_at.isoformat()}
+
+
+def parse_quotes(html, currencies, collected_at):
+    quotes = {}
+    for code, quote in iter_quotes(html, currencies, collected_at):
+        if code not in quotes or quote["t"] > quotes[code]["t"]:
+            quotes[code] = quote
     return quotes
 
 
@@ -146,6 +152,7 @@ def record(history, quotes, now):
     cutoff = (now - timedelta(days=91)).isoformat()
     series = history.setdefault("series", {})
     slots = history.setdefault("slots", {})
+    backfill = load(BACKFILL, {})
     for code in CONFIG["currencies"]:
         rows = {row["t"]: row for row in series.get(code, []) if row["t"] >= cutoff}
         observed = set(slots.get(code, []))
@@ -153,6 +160,9 @@ def record(history, quotes, now):
             quote = quotes[code]
             rows.setdefault(quote["t"], quote)
             observed.add(slot(now))
+        for quote in backfill.get(code, []):
+            if quote["t"] >= cutoff:
+                rows.setdefault(quote["t"], quote)
         series[code] = sorted(rows.values(), key=lambda row: row["t"])
         slots[code] = sorted(value for value in observed if value >= slot(now - timedelta(days=31)))
     history.update(currencies=CONFIG["currencies"], checked_at=now.isoformat(),

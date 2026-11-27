@@ -8,12 +8,21 @@ const beijingDate = new Intl.DateTimeFormat('sv-SE', {
   timeZone: 'Asia/Shanghai', dateStyle: 'short',
 });
 const dayMs = 86_400_000;
+const gapMs = 3_600_000;
+const earliestDayOffset = 29;
+const chartLeft = 70;
+const chartRightInset = 10;
 const display = value => Number(value).toFixed(value < 0.1 ? 6 : 4);
 let data;
 let days = 0;
 let dayOffset = 0;
+let chartRows = [];
+let inspected = -1;
 
 function chart(rows, minimum, maximum) {
+  chartRows = rows;
+  inspected = -1;
+  byId('quote-detail').textContent = rows.length ? '查看报价时间和价格：悬停或点击图表。' : '';
   const canvas = byId('chart');
   const {width, height} = canvas.getBoundingClientRect();
   const density = window.devicePixelRatio || 1;
@@ -28,8 +37,8 @@ function chart(rows, minimum, maximum) {
     context.fillText('该时段暂无采集数据', width / 2, height / 2);
     return;
   }
-  const left = 70;
-  const right = width - 10;
+  const left = chartLeft;
+  const right = width - chartRightInset;
   const top = 14;
   const bottom = height - 26;
   const padding = minimum === maximum ? minimum * .001 : 0;
@@ -55,7 +64,7 @@ function chart(rows, minimum, maximum) {
   context.beginPath();
   let previous;
   for (const row of rows) {
-    if (!previous || Date.parse(row.t) - Date.parse(previous.t) > 3_600_000) {
+    if (!previous || Date.parse(row.t) - Date.parse(previous.t) > gapMs) {
       if (previous) {
         context.moveTo(x(previous), y(previous));
         context.arc(x(previous), y(previous), 2, 0, 2 * Math.PI);
@@ -80,6 +89,35 @@ function chart(rows, minimum, maximum) {
   }
 }
 
+function inspectQuote(index) {
+  const row = chartRows[index];
+  if (!row || index === inspected) return;
+  inspected = index;
+  byId('quote-detail').textContent = timestamp.format(new Date(row.t))
+    + ' · ¥' + display(row.v) + ' / 1 ' + byId('currency').value;
+}
+
+function inspectPointer(event) {
+  if (!chartRows.length) return;
+  const bounds = byId('chart').getBoundingClientRect();
+  const fraction = (event.clientX - bounds.left - chartLeft)
+    / Math.max(1, bounds.width - chartLeft - chartRightInset);
+  const start = Date.parse(chartRows[0].t);
+  const end = Date.parse(chartRows.at(-1).t);
+  const desired = start + (end - start) * fraction;
+  let low = 0;
+  let high = chartRows.length - 1;
+  while (low < high) {
+    const middle = Math.floor((low + high) / 2);
+    if (Date.parse(chartRows[middle].t) < desired) low = middle + 1;
+    else high = middle;
+  }
+  const left = low - 1;
+  const closest = left >= 0 && desired - Date.parse(chartRows[left].t)
+    < Date.parse(chartRows[low].t) - desired ? left : low;
+  inspectQuote(closest);
+}
+
 function calculate() {
   const code = byId('currency').value;
   const input = byId('amount');
@@ -96,11 +134,10 @@ function render() {
   const all = data.series[code] || [];
   const last = all.at(-1);
   const now = Date.now();
-  const today = beijingDate.format(now);
-  const selectedDate = dayOffset ? beijingDate.format(now - dayMs) : today;
+  const selectedDate = beijingDate.format(now - dayOffset * dayMs);
   dayNavigation.hidden = days !== 0;
-  dayLabel.textContent = (dayOffset ? '昨日 ' : '今日 ') + selectedDate;
-  previousDay.disabled = dayOffset === 1;
+  dayLabel.textContent = (dayOffset === 0 ? '今日 ' : dayOffset === 1 ? '昨日 ' : '') + selectedDate;
+  previousDay.disabled = dayOffset === earliestDayOffset;
   nextDay.disabled = dayOffset === 0;
   byId('chart').setAttribute('aria-label', days
     ? '近 ' + days + ' 天购汇价格走势图' : dayLabel.textContent + '购汇价格走势图');
@@ -120,18 +157,22 @@ function render() {
     : '尚未采集';
   let minimum = Infinity;
   let maximum = -Infinity;
+  let total = 0;
   for (const row of rows) {
     minimum = Math.min(minimum, row.v);
     maximum = Math.max(maximum, row.v);
+    total += row.v;
   }
   byId('min').textContent = rows.length ? display(minimum) : '—';
   byId('max').textContent = rows.length ? display(maximum) : '—';
+  byId('mean').textContent = rows.length ? display(total / rows.length) : '—';
+  byId('range').textContent = rows.length ? (maximum - minimum).toFixed(maximum < 0.1 ? 6 : 4) : '—';
+  byId('last-in-range').textContent = rows.length ? display(rows.at(-1).v) : '—';
   const count = data.coverage?.[code]?.[days];
-  byId('coverage').textContent = count === undefined
-    ? '仅展示已采集的报价。所有时间为北京时间。'
-    : '五分钟采集覆盖 ' + count + '/' + days * 288
-      + (count === days * 288 ? '（完整）' : '（历史不完整）')
-      + '。所有时间为北京时间。';
+  const quoteCount = '显示 ' + rows.length + ' 笔实际报价，北京时间。相邻报价超过 1 小时会断线。';
+  const historyNote = '公开牌价仅覆盖近期分页，历史记录可能不完整。';
+  byId('coverage').textContent = quoteCount + historyNote + (count === undefined
+    ? '' : '实时五分钟采集覆盖 ' + count + '/' + days * 288 + '。');
   chart(rows, minimum, maximum);
   calculate();
 }
@@ -175,24 +216,36 @@ dayControls.setAttribute('aria-label', '按日查看走势');
 const dayLabel = document.createElement('span');
 dayLabel.setAttribute('aria-live', 'polite');
 
-function createDayButton(symbol, label, offset) {
+function createDayButton(symbol, label, step) {
   const button = document.createElement('button');
   button.type = 'button';
   button.textContent = symbol;
   button.setAttribute('aria-label', label);
   button.addEventListener('click', () => {
-    dayOffset = offset;
+    dayOffset += step;
     render();
-    (offset ? nextDay : previousDay).focus();
+    if (button.disabled) (step > 0 ? nextDay : previousDay).focus();
   });
   return button;
 }
 
-const previousDay = createDayButton('←', '查看昨日走势', 1);
-const nextDay = createDayButton('→', '返回今日走势', 0);
+const previousDay = createDayButton('←', '查看前一天走势', 1);
+const nextDay = createDayButton('→', '查看后一天走势', -1);
 dayControls.append(previousDay, dayLabel, nextDay);
 dayNavigation.append(dayControls);
 byId('periods').after(dayNavigation);
+
+byId('chart').addEventListener('pointermove', event => {
+  if (event.pointerType === 'mouse') inspectPointer(event);
+});
+byId('chart').addEventListener('click', inspectPointer);
+byId('chart').addEventListener('keydown', event => {
+  if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return;
+  event.preventDefault();
+  const step = event.key === 'ArrowLeft' ? -1 : 1;
+  const index = inspected === -1 ? chartRows.length - 1 : inspected + step;
+  inspectQuote(Math.max(0, Math.min(chartRows.length - 1, index)));
+});
 
 byId('currency').addEventListener('change', render);
 byId('amount').addEventListener('input', calculate);
