@@ -148,7 +148,7 @@ function render() {
   byId('unit').textContent = '人民币 / 1 ' + code;
   byId('amount-unit').textContent = '（' + code + '）';
   byId('target').textContent = code === data.monitor_currency
-    ? '提醒目标 ¥' + data.target_price : '';
+    ? '提醒目标 ' + (data.target_prices ?? [data.target_price]).map(price => '¥' + price).join(' / ') : '';
   byId('stamp').textContent = last ? '银行报价 ' + timestamp.format(new Date(last.t))
     + (now - Date.parse(last.t) > 7_200_000 ? '（超过两小时）' : '') : '等待首次采集';
   byId('status').textContent = data.checked_at

@@ -21,6 +21,14 @@ CONFIG = json.loads((ROOT / "config.json").read_text(encoding="utf-8"))
 PERIODS = (7, 30, 90)
 
 
+def target_prices():
+    configured = [CONFIG["target_price"], *CONFIG.get("additional_target_prices", [])]
+    prices = {Decimal(str(value)) for value in configured}
+    if any(not price.is_finite() or price <= 0 for price in prices):
+        raise ValueError("提醒目标价必须为正数")
+    return sorted(prices, reverse=True)
+
+
 def load(path, default):
     return json.loads(path.read_text(encoding="utf-8")) if path.exists() else default
 
@@ -168,6 +176,7 @@ def record(history, quotes, now):
     history.update(currencies=CONFIG["currencies"], checked_at=now.isoformat(),
                    monitor_currency=CONFIG["monitor_currency"],
                    target_price=CONFIG["target_price"],
+                   target_prices=[format(price, "f") for price in target_prices()],
                    coverage={code: {days: coverage(set(values), now, days)
                                     for days in (7, 30)}
                              for code, values in slots.items()})
@@ -220,12 +229,12 @@ def notify(test=False):
         raise SystemExit(1)
     quote = rows[-1]
     value = Decimal(str(quote["v"]))
-    target = Decimal(str(CONFIG["target_price"]))
+    prices = target_prices()
     quote_age = now - datetime.fromisoformat(quote["t"])
     checked_age = now - datetime.fromisoformat(history["checked_at"])
     fresh = (-timedelta(minutes=2) <= quote_age <= timedelta(hours=2)
              and timedelta(0) <= checked_age <= timedelta(minutes=20))
-    below = fresh and value <= target
+    active = {f"{code}:{price.normalize()}": price for price in prices if value <= price} if fresh else {}
     windows = low_windows(rows, quote, now) if fresh else []
     yesterday = (now.date() - timedelta(days=1)).isoformat()
     prior_day = [row["v"] for row in rows if row["t"].startswith(yesterday)]
@@ -239,19 +248,24 @@ def notify(test=False):
         status = receivers.setdefault(label, {})
         if status.get("day") != today:
             status.update(day=today, attempts=0)
-        threshold_key = f"{code}:{target.normalize()}"
-        if fresh and not below:
-            status.pop("below", None)
+        # Migrate the single-price marker so an already delivered alert stays deduplicated.
+        notified = set(status.get("below_targets", []))
+        if legacy := status.pop("below", None):
+            notified.add(legacy)
+        if fresh:
+            notified.intersection_update(active)
+        status["below_targets"] = sorted(notified)
         daily = now.hour >= CONFIG["daily_hour_beijing"] and status.get("daily") != today
         last = status.get("last_attempt")
         cooled = not last or now - datetime.fromisoformat(last) >= timedelta(
             minutes=CONFIG["cooldown_minutes"])
         parts = []
-        reached = below and status.get("below") != threshold_key
+        reached = [key for key in active if key not in notified]
         lows = [days for days in windows if status.get(f"{code}-{days}") != today]
         if cooled or daily:
             if reached:
-                parts.append(f"达到目标价（目标 ¥{target:f}）")
+                levels = "、".join(f"¥{active[key]:f}" for key in reached)
+                parts.append(f"达到目标价（{levels}）")
             parts.extend(f"创近{days}天已采集报价新低" for days in lows)
         if daily:
             parts.append(f"日报｜昨日采集最高 / 最低：{prior_summary}")
@@ -286,7 +300,7 @@ def notify(test=False):
                 if daily:
                     status["daily"] = today
                 if reached:
-                    status["below"] = threshold_key
+                    status["below_targets"] = sorted(notified.union(reached))
                 for days in lows:
                     status[f"{code}-{days}"] = today
         else:
