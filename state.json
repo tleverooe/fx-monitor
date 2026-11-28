@@ -1,1 +1,1 @@
-{"receivers":{"email-0":{"day":"2026-11-28","attempts":0,"last_attempt":"2026-11-27T08:00:38.997750+08:00","last_daily_attempt":"2026-11-27","daily":"2026-11-27","below_targets":[]}}}
+{"receivers":{"email-0":{"day":"2026-11-28","attempts":1,"last_attempt":"2026-11-28T08:00:41.111486+08:00","last_daily_attempt":"2026-11-28","daily":"2026-11-28","below_targets":[]}}}
